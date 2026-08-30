@@ -1,0 +1,20 @@
+{
+  "name": "project-management",
+  "version": "1.0.0",
+  "description": "a project management application for beginners",
+  "keywords": [
+    "backend",
+    "API",
+    "Creation"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "node index.js"
+  },
+  "license": "ISC",
+  "author": "Agrim Karmakar",
+  "main": "index.js",
+  "devDependencies": {
+    "prettier": "^3.9.6"
+  }
+}
