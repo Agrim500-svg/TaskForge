@@ -21,7 +21,6 @@ const userRegisterValidator = () => {
             .withMessage("Username must be at least 3 characters long"),
 
         body("password")
-            .trim()
             .notEmpty()
             .withMessage("Password is required")
             .isLength({ min: 6 })
@@ -34,10 +33,18 @@ const userRegisterValidator = () => {
 
 const userLoginValidator = () => {
     return [
-        body("email")
-            .optional()
-            .isEmail()
-            .withMessage("Email is invalid"),
+        body().custom((_, { req }) => {
+            if (!req.body?.email && !req.body?.username) {
+                throw new Error("Email or username is required");
+            }
+            if (req.body.email && (typeof req.body.email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(req.body.email))) {
+                throw new Error("Email is invalid");
+            }
+            if (req.body.username && typeof req.body.username !== "string") {
+                throw new Error("Username is invalid");
+            }
+            return true;
+        }),
         body("password")
             .notEmpty()
             .withMessage("Password is required"),
@@ -52,6 +59,8 @@ const userChangeCurrentPasswordValidator = () => {
         body("newPassword")
             .notEmpty()
             .withMessage("New password is required")
+            .isLength({ min: 6 })
+            .withMessage("New password must be at least 6 characters long")
     ];
 };
 
@@ -70,6 +79,8 @@ const userResetForgotPasswordValidator = () => {
         body("newPassword")
             .notEmpty()
             .withMessage("New password is required")
+            .isLength({ min: 6 })
+            .withMessage("New password must be at least 6 characters long")
     ];
 };
 

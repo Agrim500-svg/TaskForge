@@ -31,11 +31,10 @@ const sendEmail = async (options) => {
         html: emailHtml
     }
 
-    try{
-        await transporter.sendMail(mail)
-    }catch (error){
-        console.error("Email service failed silently.")
-        console.error("Error: ", error)
+    try {
+        await transporter.sendMail(mail);
+    } catch {
+        throw new Error("Email delivery failed");
     }
 }
 
@@ -43,7 +42,7 @@ const emailVerificationMailgenContent = (username, verificationUrl) => {
     return {
         body: {
             name: username,
-            intro: "Welcome to our App! we're excited to have ypu on board.",
+            intro: "Welcome to our app! We're excited to have you on board.",
             action:{
                 instructions: "To verify your email please click on the following button",
                 button: {

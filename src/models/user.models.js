@@ -21,8 +21,7 @@ const userSchema = new Schema(
             required: true,
             unique: true,
             lowercase: true,
-            trim: true,
-            index: true
+            trim: true
         },
         email: {
             type: String,
@@ -37,26 +36,36 @@ const userSchema = new Schema(
         },
         password: {
             type: String,
-            required: [true, "Password is required"]
+            required: [true, "Password is required"],
+            select: false
         },
         isEmailVerified: {
             type: Boolean,
             default: false
         },
+        tokenVersion: {
+            type: Number,
+            default: 0
+        },
         refreshToken: {
-            type: String
+            type: String,
+            select: false
         },
         forgotPasswordToken: {
-            type: String
+            type: String,
+            select: false
         },
         forgotPasswordExpiry: {
-            type: Date
+            type: Date,
+            select: false
         },
         emailVerificationToken: {
-            type: String
+            type: String,
+            select: false
         },
         emailVerificationExpiry: {
-            type: Date
+            type: Date,
+            select: false
         }
     }, {
         timestamps: true,
@@ -79,7 +88,9 @@ userSchema.methods.generateAccessToken = function(){
         {
             _id: this._id,
             email: this.email,
-            username: this.username
+            username: this.username,
+            tokenVersion: this.tokenVersion || 0,
+            jti: crypto.randomUUID()
         },
         process.env.ACCESS_TOKEN_SECRET,
         {expiresIn: process.env.ACCESS_TOKEN_EXPIRY}
@@ -91,7 +102,9 @@ userSchema.methods.generateRefreshToken = function(){
         {
             _id: this._id,
             email: this.email,
-            username: this.username
+            username: this.username,
+            tokenVersion: this.tokenVersion || 0,
+            jti: crypto.randomUUID()
         },
         process.env.REFRESH_TOKEN_SECRET,
         {expiresIn: process.env.REFRESH_TOKEN_EXPIRY}

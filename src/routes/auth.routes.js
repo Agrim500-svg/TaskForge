@@ -1,34 +1,39 @@
-import {Router} from "express";
-import { registerUser } from "../controllers/auth.controllers.js"
-import {validate} from "../middlewares/validator.middleware.js";
-import {userChangeCurrentPasswordValidator, userRegisterValidator} from "../validators/index.js";
-import {login} from "../controllers/auth.controllers.js";
-import {userLoginValidator, userForgotPasswordValidator, userResetForgotPasswordValidator} from "../validators/index.js";
-import {verifyJWT} from "../middlewares/auth.middleware.js";
-import {logoutUser, verifyEmail, refreshAccessToken, resetForgotPassword, getCurrentUser, changeCurrentPassword,  resendEmailVerification} from "../controllers/auth.controllers.js";
+import { Router } from "express";
+import {
+  changeCurrentPassword,
+  forgotPassword,
+  getCurrentUser,
+  login,
+  logoutUser,
+  refreshAccessToken,
+  registerUser,
+  resendEmailVerification,
+  resetForgotPassword,
+  verifyEmail,
+} from "../controllers/auth.controllers.js";
+import { verifyJWT } from "../middlewares/auth.middleware.js";
+import { validate } from "../middlewares/validator.middleware.js";
+import {
+  userChangeCurrentPasswordValidator,
+  userForgotPasswordValidator,
+  userLoginValidator,
+  userRegisterValidator,
+  userResetForgotPasswordValidator,
+} from "../validators/index.js";
+
 const router = Router();
 
-//Unsecured Route
-router.route("/register").post(userRegisterValidator(), validate, registerUser);
-router.route("/login").post(userLoginValidator(), validate, login);
-router.route("/verify-email/:verificationToken").get(verifyEmail);
-router.route("/refresh-token").post(refreshAccessToken);
-router.route("/forgot-password").post(
-    userForgotPasswordValidator(),
-    validate,
-    resetForgotPassword
-);
-router.route("/reset-password/:resetToken").post(
-    userResetForgotPasswordValidator(),
-    validate,
-    resetForgotPassword
-);
+router.post("/register", userRegisterValidator(), validate, registerUser);
+router.post("/login", userLoginValidator(), validate, login);
+router.get("/verify-email/:verificationToken", verifyEmail);
+router.post("/refresh-token", refreshAccessToken);
+router.post("/forgot-password", userForgotPasswordValidator(), validate, forgotPassword);
+router.post("/reset-password/:resetToken", userResetForgotPasswordValidator(), validate, resetForgotPassword);
 
-//secure routes
-router.route("/logout").post(verifyJWT, logoutUser);
-router.route("/current-user").get(verifyJWT, getCurrentUser);
-router.route("/change-password").post(verifyJWT,userChangeCurrentPasswordValidator(),validate, changeCurrentPassword);
-router.route("/resend-verification-email").post(verifyJWT, resendEmailVerification);
+router.post("/logout", verifyJWT, logoutUser);
+router.get("/current-user", verifyJWT, getCurrentUser);
+router.post("/change-password", verifyJWT, userChangeCurrentPasswordValidator(), validate, changeCurrentPassword);
+router.post("/resend-email-verification", verifyJWT, resendEmailVerification);
 
 export default router;
 

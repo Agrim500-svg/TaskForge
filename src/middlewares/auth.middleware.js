@@ -7,26 +7,28 @@ import mongoose from "mongoose";
 
 
 export const verifyJWT = asyncHandler(async (req, res, next) => {
-    const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "")
+    const authorization = req.header("Authorization");
+    const token = req.cookies?.accessToken || (authorization?.startsWith("Bearer ") ? authorization.slice(7) : null);
 
     if(!token) {
         throw new ApiError(401, "Unauthorized request");
     }
 
-    try{
-        const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
-        const user = await User.findById(decodedToken?._id).select(
-            "-password -refreshToken -emailVerificationToken -emailVerificationExpiry",
-        );
+    let decodedToken;
+    try {
+        decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] });
+    } catch {
+        throw new ApiError(401, "Invalid or expired access token");
+    }
 
-        if(!user) {
-        throw new ApiError(401, "Invalid access token");
-        }
-        req.user=user
-        next()
-    } catch (error) {
-        throw new ApiError(401, "Invalid access token");
-    }    
+    const user = await User.findById(decodedToken?._id).select(
+        "-password -refreshToken -emailVerificationToken -emailVerificationExpiry -forgotPasswordToken -forgotPasswordExpiry",
+    );
+    if (!user || decodedToken.tokenVersion !== (user.tokenVersion || 0)) {
+        throw new ApiError(401, "Invalid or revoked access token");
+    }
+    req.user = user;
+    next();
 });
 
 export const validateProjectPermission = (roles = []) => {
