@@ -10,7 +10,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test:api": "node --test tests/api.integration.test.js"
   },
   "license": "ISC",
   "author": "Agrim Karmakar",
