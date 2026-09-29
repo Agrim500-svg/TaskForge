@@ -87,10 +87,18 @@ const userResetForgotPasswordValidator = () => {
 const createProjectValidator = () => {
     return [
         body("name")
+            .trim()
             .notEmpty()
-            .withMessage("Name is required"),
+            .withMessage("Name is required")
+            .isLength({ max: 100 })
+            .withMessage("Name must be at most 100 characters long"),
         body("description")
-            .optional()
+            .optional({ nullable: true })
+            .isString()
+            .withMessage("Description must be a string")
+            .trim()
+            .isLength({ max: 1000 })
+            .withMessage("Description must be at most 1000 characters long"),
     ];
 };
 

@@ -5,10 +5,14 @@ const projectSchema = new Schema({
         type: String,
         required: true,
         unique: true,
-        trim: true
+        trim: true,
+        minlength: 1,
+        maxlength: 100,
     },
     description: {
         type: String,
+        trim: true,
+        maxlength: 1000,
     },
     createdBy: {
         type: Schema.Types.ObjectId,
