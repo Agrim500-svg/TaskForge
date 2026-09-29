@@ -6,9 +6,15 @@ const taskSchema = new Schema({
     title: {
         type: String,
         required: true,
-        trim: true
+        trim: true,
+        minlength: 1,
+        maxlength: 200,
     },
-    description: String,
+    description: {
+        type: String,
+        trim: true,
+        maxlength: 5000,
+    },
     project: {
         type: Schema.Types.ObjectId,
         ref: "Project",
@@ -20,7 +26,8 @@ const taskSchema = new Schema({
     },
     assignedBy: {
         type: Schema.Types.ObjectId,
-        ref: "User"
+        ref: "User",
+        required: true,
     },
     status: {
         type: String,
@@ -33,9 +40,12 @@ const taskSchema = new Schema({
             mimetype: String,
             size: Number
         }],
-        defaults: []
+        default: []
     }
 },{timestamps: true},
 );
 
-export const Tasks = mongoose.model("Task",taskSchema);
+taskSchema.index({ project: 1, createdAt: -1 });
+taskSchema.index({ project: 1, status: 1 });
+
+export const Task = mongoose.model("Task", taskSchema);

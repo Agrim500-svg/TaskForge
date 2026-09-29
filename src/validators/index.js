@@ -1,5 +1,5 @@
 import { body } from "express-validator";
-import { AssignableProjectMemberRoles } from "../utils/constants.js"
+import { AssignableProjectMemberRoles, AvailableTaskStatus } from "../utils/constants.js"
 
 
 const userRegisterValidator = () => {
@@ -126,5 +126,62 @@ const updateMemberRoleValidator = () => [
         .withMessage("New role must be project_admin or member"),
 ]
 
+const createTaskValidator = () => [
+    body("title")
+        .trim()
+        .notEmpty()
+        .withMessage("Task title is required")
+        .isLength({ max: 200 })
+        .withMessage("Task title must be at most 200 characters long"),
+    body("description")
+        .optional({ nullable: true })
+        .isString()
+        .withMessage("Task description must be a string")
+        .trim()
+        .isLength({ max: 5000 })
+        .withMessage("Task description must be at most 5000 characters long"),
+    body("assignedTo")
+        .optional({ nullable: true })
+        .isMongoId()
+        .withMessage("Assignee ID is invalid"),
+    body("status")
+        .optional()
+        .isIn(AvailableTaskStatus)
+        .withMessage("Task status is invalid"),
+]
+
+const updateTaskValidator = () => [
+    body().custom((_, { req }) => {
+        const editableFields = ["title", "description", "assignedTo", "status"];
+        if (!editableFields.some((field) => Object.hasOwn(req.body ?? {}, field))) {
+            throw new Error("At least one task field must be provided");
+        }
+        return true;
+    }),
+    body("title")
+        .optional()
+        .trim()
+        .notEmpty()
+        .withMessage("Task title cannot be empty")
+        .isLength({ max: 200 })
+        .withMessage("Task title must be at most 200 characters long"),
+    body("description")
+        .optional({ nullable: true })
+        .isString()
+        .withMessage("Task description must be a string")
+        .trim()
+        .isLength({ max: 5000 })
+        .withMessage("Task description must be at most 5000 characters long"),
+    body("assignedTo")
+        .optional({ nullable: true })
+        .isMongoId()
+        .withMessage("Assignee ID is invalid"),
+    body("status")
+        .optional()
+        .isIn(AvailableTaskStatus)
+        .withMessage("Task status is invalid"),
+]
+
 export { userRegisterValidator, userLoginValidator, userChangeCurrentPasswordValidator, userForgotPasswordValidator,
-    userResetForgotPasswordValidator, createProjectValidator, addMembertoProjectValidator, updateMemberRoleValidator };
+    userResetForgotPasswordValidator, createProjectValidator, addMembertoProjectValidator, updateMemberRoleValidator,
+    createTaskValidator, updateTaskValidator };

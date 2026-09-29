@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 import { User } from "../models/user.models.js";
 import { Project } from "../models/project.models.js";
 import { ProjectMember } from "../models/projectmember.models.js";
-import { Tasks as Task } from "../models/task.models.js";
+import { Task } from "../models/task.models.js";
 import { Subtask } from "../models/subtask.models.js";
 import { ProjectNote } from "../models/note.models.js";
 import { ApiResponse } from "../utils/api-response.js";
