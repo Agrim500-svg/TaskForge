@@ -1,5 +1,5 @@
 import { body } from "express-validator";
-import {AvailableUserRole} from "../utils/constants.js"
+import { AssignableProjectMemberRoles } from "../utils/constants.js"
 
 
 const userRegisterValidator = () => {
@@ -112,11 +112,19 @@ const addMembertoProjectValidator = () => {
             .withMessage("Email is invalid"),
         body("role")
             .notEmpty()
-            .notEmpty("Role is required")
-            .isIn(AvailableUserRole)
-            .withMessage("Role is invalid"),
+            .withMessage("Role is required")
+            .isIn(AssignableProjectMemberRoles)
+            .withMessage("Role must be project_admin or member"),
     ]
 }
 
+const updateMemberRoleValidator = () => [
+    body("newRole")
+        .notEmpty()
+        .withMessage("New role is required")
+        .isIn(AssignableProjectMemberRoles)
+        .withMessage("New role must be project_admin or member"),
+]
+
 export { userRegisterValidator, userLoginValidator, userChangeCurrentPasswordValidator, userForgotPasswordValidator,
-    userResetForgotPasswordValidator, createProjectValidator, addMembertoProjectValidator };
+    userResetForgotPasswordValidator, createProjectValidator, addMembertoProjectValidator, updateMemberRoleValidator };

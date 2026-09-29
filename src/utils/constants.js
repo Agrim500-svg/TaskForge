@@ -5,6 +5,10 @@ export const UserRolesEnum={
 }
 
 export const AvailableUserRole = Object.values(UserRolesEnum)
+export const AssignableProjectMemberRoles = [
+    UserRolesEnum.PROJECT_ADMIN,
+    UserRolesEnum.MEMBER,
+]
 
 export const TaskStatusEnum ={
     TODO: "todo",
