@@ -212,6 +212,20 @@ const updateSubtaskValidator = () => [
         .withMessage("Subtask completion status must be a boolean"),
 ];
 
+const createNoteValidator = () => [
+    body("content")
+        .isString()
+        .withMessage("Note content must be a string")
+        .trim()
+        .notEmpty()
+        .withMessage("Note content is required")
+        .isLength({ max: 10000 })
+        .withMessage("Note content must be at most 10000 characters long"),
+];
+
+const updateNoteValidator = () => createNoteValidator();
+
 export { userRegisterValidator, userLoginValidator, userChangeCurrentPasswordValidator, userForgotPasswordValidator,
     userResetForgotPasswordValidator, createProjectValidator, addMembertoProjectValidator, updateMemberRoleValidator,
-    createTaskValidator, updateTaskValidator, createSubtaskValidator, updateSubtaskValidator };
+    createTaskValidator, updateTaskValidator, createSubtaskValidator, updateSubtaskValidator,
+    createNoteValidator, updateNoteValidator };
