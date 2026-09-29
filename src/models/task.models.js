@@ -36,9 +36,22 @@ const taskSchema = new Schema({
     },
     attachments: {
         type: [{
-            url: String,
-            mimetype: String,
-            size: Number
+            url: {
+                type: String,
+                required: true,
+                match: /^\/images\/[0-9a-f-]{36}\.(jpg|jpeg|png|gif|webp|pdf)$/,
+            },
+            mimetype: {
+                type: String,
+                required: true,
+                enum: ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"],
+            },
+            size: {
+                type: Number,
+                required: true,
+                min: 1,
+                max: 5 * 1024 * 1024,
+            }
         }],
         default: []
     }

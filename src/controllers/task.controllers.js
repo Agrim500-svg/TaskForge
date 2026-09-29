@@ -6,6 +6,7 @@ import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { UserRolesEnum } from "../utils/constants.js";
+import { removeTaskAttachments, removeUploadedFiles } from "../middlewares/multer.middleware.js";
 
 const assignedUserFields = "username fullName avatar";
 
@@ -125,7 +126,42 @@ const deleteTask = asyncHandler(async (req, res) => {
   } finally {
     await session.endSession();
   }
+  await removeTaskAttachments(task.attachments);
   return res.status(200).json(new ApiResponse(200, task, "Task deleted successfully"));
+});
+
+const validateTaskAttachmentTarget = asyncHandler(async (req, _res, next) => {
+  await findTaskInProject(req.params.taskId, req.params.projectId);
+  next();
+});
+
+const uploadTaskAttachmentsToTask = asyncHandler(async (req, res) => {
+  if (!req.files?.length) throw new ApiError(400, "At least one attachment is required");
+
+  const task = await Task.findOne({ _id: req.params.taskId, project: req.params.projectId });
+  if (!task) {
+    await removeUploadedFiles(req.files);
+    throw new ApiError(404, "Task not found in this project");
+  }
+
+  task.attachments.push(...req.files.map((file) => ({
+    url: `/images/${file.filename}`,
+    mimetype: file.mimetype,
+    size: file.size,
+  })));
+
+  try {
+    await task.save();
+  } catch (error) {
+    await removeUploadedFiles(req.files);
+    throw error;
+  }
+  await task.populate([
+    { path: "assignedTo", select: assignedUserFields },
+    { path: "assignedBy", select: assignedUserFields },
+  ]);
+
+  return res.status(201).json(new ApiResponse(201, task, "Task attachments uploaded successfully"));
 });
 
 const createSubtask = asyncHandler(async (req, res) => {
@@ -155,4 +191,15 @@ const deleteSubtask = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, subtask, "Subtask deleted successfully"));
 });
 
-export { createTask, createSubtask, deleteTask, deleteSubtask, getTaskById, getTasks, updateTask, updateSubtask };
+export {
+  createTask,
+  createSubtask,
+  deleteTask,
+  deleteSubtask,
+  getTaskById,
+  getTasks,
+  updateTask,
+  updateSubtask,
+  uploadTaskAttachmentsToTask,
+  validateTaskAttachmentTarget,
+};

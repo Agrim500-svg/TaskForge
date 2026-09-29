@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { createTask, createSubtask, deleteTask, deleteSubtask, getTaskById, getTasks, updateTask, updateSubtask } from "../controllers/task.controllers.js";
+import { createTask, createSubtask, deleteTask, deleteSubtask, getTaskById, getTasks, updateTask, updateSubtask, uploadTaskAttachmentsToTask, validateTaskAttachmentTarget } from "../controllers/task.controllers.js";
 import { verifyJWT, validateProjectPermission } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validator.middleware.js";
 import { createTaskValidator, createSubtaskValidator, updateTaskValidator, updateSubtaskValidator } from "../validators/index.js";
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
+import { uploadTaskAttachments } from "../middlewares/multer.middleware.js";
 
 const router = Router();
 const taskManagerRoles = [UserRolesEnum.ADMIN, UserRolesEnum.PROJECT_ADMIN];
@@ -27,6 +28,13 @@ router.put(
   updateTask,
 );
 router.delete("/:projectId/t/:taskId", validateProjectPermission(taskManagerRoles), deleteTask);
+router.post(
+  "/:projectId/t/:taskId/attachments",
+  validateProjectPermission(taskManagerRoles),
+  validateTaskAttachmentTarget,
+  uploadTaskAttachments,
+  uploadTaskAttachmentsToTask,
+);
 router.post(
   "/:projectId/t/:taskId/subtasks",
   validateProjectPermission(taskManagerRoles),
