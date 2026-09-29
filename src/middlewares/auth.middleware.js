@@ -4,6 +4,7 @@ import {ApiError} from "../utils/api-error.js";
 import {asyncHandler} from "../utils/async-handler.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
+import {Project} from "../models/project.models.js";
 
 
 export const verifyJWT = asyncHandler(async (req, res, next) => {
@@ -32,34 +33,37 @@ export const verifyJWT = asyncHandler(async (req, res, next) => {
 });
 
 export const validateProjectPermission = (roles = []) => {
+    const allowedRoles = roles.flat(Infinity);
+
     return asyncHandler(async (req, res, next) => {
-        const {projectId} = req.params;
+        const { projectId } = req.params;
 
-        if(!projectId){
-            throw new ApiError(400, "project id is missing");
+        if (!projectId) {
+            throw new ApiError(400, "Project ID is required");
+        }
+        if (!mongoose.isValidObjectId(projectId)) {
+            throw new ApiError(400, "Project ID is invalid");
         }
 
-        await ProjectMember.findOne({
+        const projectMember = await ProjectMember.findOne({
             project: new mongoose.Types.ObjectId(projectId),
-            user: new mongoose.Types.ObjectId(req.user._id)
-        })
+            user: new mongoose.Types.ObjectId(req.user._id),
+        }).select("role project user");
 
-        if(!project){
-            throw new ApiError(400, "project not found");
+        if (!projectMember) {
+            const projectExists = await Project.exists({ _id: projectId });
+            if (!projectExists) {
+                throw new ApiError(404, "Project not found");
+            }
+            throw new ApiError(403, "You are not a member of this project");
         }
 
-        const givenRole = project?.roles
-
-        req.user.role = givenRole
-
-        if(!roles.includes(givenRole)){
-            throw new ApiError(
-                403,
-                "You donot have permission to perform thos action"
-            )
+        if (allowedRoles.length && !allowedRoles.includes(projectMember.role)) {
+            throw new ApiError(403, "You do not have permission to perform this action");
         }
 
+        req.projectMember = projectMember;
+        req.projectRole = projectMember.role;
         next();
-
-    })
-}
+    });
+};
