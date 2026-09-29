@@ -1,9 +1,11 @@
 import mongoose from "mongoose";
 import { Task } from "../models/task.models.js";
+import { Subtask } from "../models/subtask.models.js";
 import { ProjectMember } from "../models/projectmember.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/async-handler.js";
+import { UserRolesEnum } from "../utils/constants.js";
 
 const assignedUserFields = "username fullName avatar";
 
@@ -11,6 +13,22 @@ const validateTaskId = (taskId) => {
   if (!mongoose.isValidObjectId(taskId)) {
     throw new ApiError(400, "Task ID is invalid");
   }
+};
+
+const findTaskInProject = async (taskId, projectId) => {
+  validateTaskId(taskId);
+  const task = await Task.findOne({ _id: taskId, project: projectId }).select("_id");
+  if (!task) throw new ApiError(404, "Task not found in this project");
+  return task;
+};
+
+const findSubtaskInProject = async (subtaskId, projectId) => {
+  if (!mongoose.isValidObjectId(subtaskId)) throw new ApiError(400, "Subtask ID is invalid");
+  const subtask = await Subtask.findById(subtaskId);
+  if (!subtask) throw new ApiError(404, "Subtask not found in this project");
+  const taskExists = await Task.exists({ _id: subtask.task, project: projectId });
+  if (!taskExists) throw new ApiError(404, "Subtask not found in this project");
+  return subtask;
 };
 
 const validateAssignee = async (assignedTo, projectId) => {
@@ -63,7 +81,12 @@ const getTaskById = asyncHandler(async (req, res) => {
     .populate("assignedBy", assignedUserFields);
 
   if (!task) throw new ApiError(404, "Task not found in this project");
-  return res.status(200).json(new ApiResponse(200, task, "Task fetched successfully"));
+  const subtasks = await Subtask.find({ task: task._id })
+    .populate("createdBy", assignedUserFields)
+    .sort({ createdAt: 1 });
+  const taskData = task.toObject();
+  taskData.subtasks = subtasks;
+  return res.status(200).json(new ApiResponse(200, taskData, "Task fetched successfully"));
 });
 
 const updateTask = asyncHandler(async (req, res) => {
@@ -90,12 +113,46 @@ const updateTask = asyncHandler(async (req, res) => {
 
 const deleteTask = asyncHandler(async (req, res) => {
   validateTaskId(req.params.taskId);
-  const task = await Task.findOneAndDelete({
-    _id: req.params.taskId,
-    project: req.params.projectId,
-  });
-  if (!task) throw new ApiError(404, "Task not found in this project");
+  const session = await mongoose.startSession();
+  let task;
+  try {
+    await session.withTransaction(async () => {
+      task = await Task.findOne({ _id: req.params.taskId, project: req.params.projectId }).session(session);
+      if (!task) throw new ApiError(404, "Task not found in this project");
+      await Subtask.deleteMany({ task: task._id }, { session });
+      await task.deleteOne({ session });
+    });
+  } finally {
+    await session.endSession();
+  }
   return res.status(200).json(new ApiResponse(200, task, "Task deleted successfully"));
 });
 
-export { createTask, deleteTask, getTaskById, getTasks, updateTask };
+const createSubtask = asyncHandler(async (req, res) => {
+  const task = await findTaskInProject(req.params.taskId, req.params.projectId);
+  const subtask = await Subtask.create({ title: req.body.title, task: task._id, createdBy: req.user._id });
+  await subtask.populate("createdBy", assignedUserFields);
+  return res.status(201).json(new ApiResponse(201, subtask, "Subtask created successfully"));
+});
+
+const updateSubtask = asyncHandler(async (req, res) => {
+  const subtask = await findSubtaskInProject(req.params.subtaskId, req.params.projectId);
+  const isManager = [UserRolesEnum.ADMIN, UserRolesEnum.PROJECT_ADMIN].includes(req.projectRole);
+  if (!isManager && Object.hasOwn(req.body, "title")) {
+    throw new ApiError(403, "Members can only update subtask completion status");
+  }
+
+  if (Object.hasOwn(req.body, "title")) subtask.title = req.body.title;
+  if (Object.hasOwn(req.body, "isCompleted")) subtask.isCompleted = req.body.isCompleted;
+  await subtask.save();
+  await subtask.populate("createdBy", assignedUserFields);
+  return res.status(200).json(new ApiResponse(200, subtask, "Subtask updated successfully"));
+});
+
+const deleteSubtask = asyncHandler(async (req, res) => {
+  const subtask = await findSubtaskInProject(req.params.subtaskId, req.params.projectId);
+  await subtask.deleteOne();
+  return res.status(200).json(new ApiResponse(200, subtask, "Subtask deleted successfully"));
+});
+
+export { createTask, createSubtask, deleteTask, deleteSubtask, getTaskById, getTasks, updateTask, updateSubtask };

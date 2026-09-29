@@ -182,6 +182,36 @@ const updateTaskValidator = () => [
         .withMessage("Task status is invalid"),
 ]
 
+const createSubtaskValidator = () => [
+    body("title")
+        .trim()
+        .notEmpty()
+        .withMessage("Subtask title is required")
+        .isLength({ max: 200 })
+        .withMessage("Subtask title must be at most 200 characters long"),
+];
+
+const updateSubtaskValidator = () => [
+    body().custom((_, { req }) => {
+        const editableFields = ["title", "isCompleted"];
+        if (!editableFields.some((field) => Object.hasOwn(req.body ?? {}, field))) {
+            throw new Error("At least one subtask field must be provided");
+        }
+        return true;
+    }),
+    body("title")
+        .optional()
+        .trim()
+        .notEmpty()
+        .withMessage("Subtask title cannot be empty")
+        .isLength({ max: 200 })
+        .withMessage("Subtask title must be at most 200 characters long"),
+    body("isCompleted")
+        .optional()
+        .isBoolean()
+        .withMessage("Subtask completion status must be a boolean"),
+];
+
 export { userRegisterValidator, userLoginValidator, userChangeCurrentPasswordValidator, userForgotPasswordValidator,
     userResetForgotPasswordValidator, createProjectValidator, addMembertoProjectValidator, updateMemberRoleValidator,
-    createTaskValidator, updateTaskValidator };
+    createTaskValidator, updateTaskValidator, createSubtaskValidator, updateSubtaskValidator };

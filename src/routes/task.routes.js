@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { createTask, deleteTask, getTaskById, getTasks, updateTask } from "../controllers/task.controllers.js";
+import { createTask, createSubtask, deleteTask, deleteSubtask, getTaskById, getTasks, updateTask, updateSubtask } from "../controllers/task.controllers.js";
 import { verifyJWT, validateProjectPermission } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validator.middleware.js";
-import { createTaskValidator, updateTaskValidator } from "../validators/index.js";
+import { createTaskValidator, createSubtaskValidator, updateTaskValidator, updateSubtaskValidator } from "../validators/index.js";
 import { AvailableUserRole, UserRolesEnum } from "../utils/constants.js";
 
 const router = Router();
@@ -27,5 +27,20 @@ router.put(
   updateTask,
 );
 router.delete("/:projectId/t/:taskId", validateProjectPermission(taskManagerRoles), deleteTask);
+router.post(
+  "/:projectId/t/:taskId/subtasks",
+  validateProjectPermission(taskManagerRoles),
+  createSubtaskValidator(),
+  validate,
+  createSubtask,
+);
+router.put(
+  "/:projectId/st/:subtaskId",
+  validateProjectPermission(AvailableUserRole),
+  updateSubtaskValidator(),
+  validate,
+  updateSubtask,
+);
+router.delete("/:projectId/st/:subtaskId", validateProjectPermission(taskManagerRoles), deleteSubtask);
 
 export default router;
