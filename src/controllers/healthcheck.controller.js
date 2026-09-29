@@ -1,4 +1,4 @@
-import {ApiResponse} from '../utils/api-Response.js';
+import {ApiResponse} from '../utils/api-response.js';
 import { asyncHandler } from '../utils/async-handler.js';   
 
 /** 
