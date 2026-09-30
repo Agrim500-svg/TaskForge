@@ -55,7 +55,7 @@ app.use("/api/v1/notifications", notificationRouter);
 
 
 app.get('/', (req, res) => {
-  res.send('Welcome to basecampy!');
+  res.send('Welcome to the TaskForge API!');
 });
 
 app.use((req, res, next) => {
