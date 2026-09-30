@@ -15,6 +15,27 @@ TaskForge is a project management workspace for organizing projects, tasks, and 
 - Responsive monochrome interface with light and dark themes
 - REST API backed by MongoDB
 
+## Screenshots
+
+The screenshots below show the main path through the app: start at the landing page, create an account, arrive at the dashboard, then create a project to begin organizing work.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/01-landing-page.png" alt="TaskForge landing page" width="460"><br><sub><strong>Landing page</strong> — entry point for creating an account or signing in.</sub></td>
+    <td align="center"><img src="docs/screenshots/02-registration.png" alt="TaskForge account registration page" width="460"><br><sub><strong>Registration</strong> — create a TaskForge account.</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/03-dashboard.png" alt="TaskForge dashboard" width="460"><br><sub><strong>Dashboard</strong> — overview of projects and open work.</sub></td>
+    <td align="center"><img src="docs/screenshots/04-create-project.png" alt="TaskForge create project dialog" width="460"><br><sub><strong>Create a project</strong> — start a shared workspace with a name and description.</sub></td>
+  </tr>
+</table>
+
+### Working through TaskForge
+
+1. Visitors can create an account or sign in from the landing page.
+2. After signing in, the dashboard summarizes the user's projects and tasks.
+3. Create a project, then add team members, tasks, subtasks, notes, and attachments from the workspace.
+
 ## Technology
 
 - **Frontend:** React, Vite, React Router, and Lucide
