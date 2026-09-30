@@ -44,12 +44,14 @@ import authRouter from "./routes/auth.routes.js";
 import projectRouter from "./routes/project.routes.js";
 import taskRouter from "./routes/task.routes.js";
 import noteRouter from "./routes/note.routes.js";
+import notificationRouter from "./routes/notification.routes.js";
 
 app.use("/api/v1/healthCheck", healthcheckRouter);
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/project", projectRouter);
 app.use("/api/v1/tasks", taskRouter);
 app.use("/api/v1/notes", noteRouter);
+app.use("/api/v1/notifications", notificationRouter);
 
 
 app.get('/', (req, res) => {

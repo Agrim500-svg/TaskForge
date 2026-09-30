@@ -3,6 +3,7 @@ import { ProjectNote } from "../models/note.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/async-handler.js";
+import { createNotifications, projectMemberIds } from "../utils/notifications.js";
 
 const noteCreatorFields = "username fullName avatar";
 
@@ -25,6 +26,9 @@ const createNote = asyncHandler(async (req, res) => {
     content: req.body.content,
   });
   await note.populate("createdBy", noteCreatorFields);
+  const project = await note.populate({ path: "project", select: "name" });
+  const recipients = await projectMemberIds(req.params.projectId, { exclude: [req.user._id] });
+  await createNotifications({ recipients, actor: req.user._id, project: req.params.projectId, entityType: "note", entityId: note._id, type: "note_created", message: `A new project note was added to “${project.project?.name ?? "your project"}”.` });
 
   return res.status(201).json(new ApiResponse(201, note, "Project note created successfully"));
 });

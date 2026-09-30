@@ -5,8 +5,9 @@ import { ProjectMember } from "../models/projectmember.models.js";
 import { ApiError } from "../utils/api-error.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { asyncHandler } from "../utils/async-handler.js";
-import { UserRolesEnum } from "../utils/constants.js";
+import { TaskStatusEnum, UserRolesEnum } from "../utils/constants.js";
 import { removeTaskAttachments, removeUploadedFiles } from "../middlewares/multer.middleware.js";
+import { createNotifications, projectAdminIds, projectMemberIds } from "../utils/notifications.js";
 
 const assignedUserFields = "username fullName avatar";
 
@@ -55,7 +56,7 @@ const getTasks = asyncHandler(async (req, res) => {
 });
 
 const createTask = asyncHandler(async (req, res) => {
-  const { title, description, assignedTo, status } = req.body;
+  const { title, description, assignedTo, status, dueDate } = req.body;
   const task = await Task.create({
     title,
     description,
@@ -63,11 +64,15 @@ const createTask = asyncHandler(async (req, res) => {
     assignedTo: await validateAssignee(assignedTo, req.params.projectId),
     assignedBy: req.user._id,
     ...(status !== undefined ? { status } : {}),
+    ...(dueDate !== undefined ? { dueDate } : {}),
   });
   await task.populate([
     { path: "assignedTo", select: assignedUserFields },
     { path: "assignedBy", select: assignedUserFields },
   ]);
+
+  const members = await projectMemberIds(req.params.projectId);
+  await createNotifications({ recipients: members, actor: req.user._id, project: req.params.projectId, entityType: "task", entityId: task._id, type: "task_created", message: `New task: “${task.title}”.` });
 
   return res.status(201).json(new ApiResponse(201, task, "Task created successfully"));
 });
@@ -92,8 +97,17 @@ const getTaskById = asyncHandler(async (req, res) => {
 
 const updateTask = asyncHandler(async (req, res) => {
   validateTaskId(req.params.taskId);
+  const existingTask = await Task.findOne({ _id: req.params.taskId, project: req.params.projectId });
+  if (!existingTask) throw new ApiError(404, "Task not found in this project");
+  const isManager = [UserRolesEnum.ADMIN, UserRolesEnum.PROJECT_ADMIN].includes(req.projectRole);
+  if (!isManager) {
+    const onlyStatus = Object.keys(req.body ?? {}).every((field) => field === "status");
+    if (!onlyStatus || String(existingTask.assignedTo) !== String(req.user._id)) {
+      throw new ApiError(403, "Members can update the status of tasks assigned to them");
+    }
+  }
   const updates = {};
-  for (const field of ["title", "description", "status"]) {
+  for (const field of ["title", "description", "status", "dueDate"]) {
     if (req.body[field] !== undefined) updates[field] = req.body[field];
   }
   if (Object.hasOwn(req.body, "assignedTo")) {
@@ -109,6 +123,10 @@ const updateTask = asyncHandler(async (req, res) => {
     .populate("assignedBy", assignedUserFields);
 
   if (!task) throw new ApiError(404, "Task not found in this project");
+  if (updates.status === TaskStatusEnum.DONE && existingTask.status !== TaskStatusEnum.DONE) {
+    const admins = (await projectAdminIds(req.params.projectId)).filter((id) => id !== String(req.user._id));
+    await createNotifications({ recipients: admins, actor: req.user._id, project: req.params.projectId, entityType: "task", entityId: task._id, type: "work_completed", message: `Task “${task.title}” was completed.` });
+  }
   return res.status(200).json(new ApiResponse(200, task, "Task updated successfully"));
 });
 
@@ -166,21 +184,32 @@ const uploadTaskAttachmentsToTask = asyncHandler(async (req, res) => {
 
 const createSubtask = asyncHandler(async (req, res) => {
   const task = await findTaskInProject(req.params.taskId, req.params.projectId);
-  const subtask = await Subtask.create({ title: req.body.title, task: task._id, createdBy: req.user._id });
+  const subtask = await Subtask.create({ title: req.body.title, task: task._id, createdBy: req.user._id, status: TaskStatusEnum.TODO });
   await subtask.populate("createdBy", assignedUserFields);
   return res.status(201).json(new ApiResponse(201, subtask, "Subtask created successfully"));
 });
 
 const updateSubtask = asyncHandler(async (req, res) => {
   const subtask = await findSubtaskInProject(req.params.subtaskId, req.params.projectId);
+  const wasCompleted = subtask.status === TaskStatusEnum.DONE || subtask.isCompleted;
   const isManager = [UserRolesEnum.ADMIN, UserRolesEnum.PROJECT_ADMIN].includes(req.projectRole);
   if (!isManager && Object.hasOwn(req.body, "title")) {
-    throw new ApiError(403, "Members can only update subtask completion status");
+    throw new ApiError(403, "Members can only update subtask status");
   }
 
   if (Object.hasOwn(req.body, "title")) subtask.title = req.body.title;
-  if (Object.hasOwn(req.body, "isCompleted")) subtask.isCompleted = req.body.isCompleted;
+  if (Object.hasOwn(req.body, "status")) {
+    subtask.status = req.body.status;
+    subtask.isCompleted = req.body.status === TaskStatusEnum.DONE;
+  } else if (Object.hasOwn(req.body, "isCompleted")) {
+    subtask.isCompleted = req.body.isCompleted;
+    subtask.status = req.body.isCompleted ? TaskStatusEnum.DONE : TaskStatusEnum.TODO;
+  }
   await subtask.save();
+  if (subtask.status === TaskStatusEnum.DONE && !wasCompleted) {
+    const admins = (await projectAdminIds(req.params.projectId)).filter((id) => id !== String(req.user._id));
+    await createNotifications({ recipients: admins, actor: req.user._id, project: req.params.projectId, entityType: "task", entityId: subtask.task, type: "work_completed", message: `Subtask “${subtask.title}” was completed.` });
+  }
   await subtask.populate("createdBy", assignedUserFields);
   return res.status(200).json(new ApiResponse(200, subtask, "Subtask updated successfully"));
 });

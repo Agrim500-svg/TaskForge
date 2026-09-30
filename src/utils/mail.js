@@ -5,13 +5,17 @@ const sendEmail = async (options) => {
     const mailGenerator = new Mailgen({
         theme: "default",
         product: {
-            name: "Task Manager",
-            link: "https://taskmanagelink.com"
+            name: "TaskForge",
+            link: process.env.FRONTEND_BASE_URL || "http://localhost:5173",
+            copyright: "TaskForge — thoughtful work starts with a clear plan."
         }
     });
 
-    const emailTextual = mailGenerator.generatePlaintext(options.mailgenContent)
+    const emailTextual = mailGenerator.generatePlaintext(options.mailgenContent);
     const emailHtml = mailGenerator.generate(options.mailgenContent)
+        .replaceAll("#22BC66", "#252623")
+        .replaceAll("#22bc66", "#252623")
+        .replaceAll("Arial, 'Helvetica Neue', Helvetica, sans-serif", "'Segoe UI', Arial, sans-serif");
 
     const transporter = nodemailer.createTransport({
         host: process.env.MAILTRAP_SMTP_HOST,
@@ -24,7 +28,7 @@ const sendEmail = async (options) => {
     })
 
     const mail = {
-        from : "mail.taskmanager@example.com",
+        from: process.env.MAIL_FROM || '"TaskForge" <no-reply@taskforge.local>',
         to: options.email,
         subject: options.subject,
         text: emailTextual,
@@ -42,16 +46,16 @@ const emailVerificationMailgenContent = (username, verificationUrl) => {
     return {
         body: {
             name: username,
-            intro: "Welcome to our app! We're excited to have you on board.",
+            intro: "Welcome to TaskForge. Confirm your email address to get started with your workspace.",
             action:{
                 instructions: "To verify your email please click on the following button",
                 button: {
                     color: "#22BC66",
-                    text: "Verify your email",
+                    text: "Verify your TaskForge email",
                     link: verificationUrl
                 },
             },
-            outro: "Need help or have questions? Just reply to this email, we'd love to help."
+            outro: "If you did not create a TaskForge account, you can ignore this email."
         },
     };
 };
@@ -61,16 +65,16 @@ const forgotPasswordMailgenContent = (username, passwordResetUrl) => {
     return {
         body: {
             name: username,
-            intro: "We got a request to reset the password of your account.",
+            intro: "We received a request to reset the password for your TaskForge account.",
             action:{
                 instructions: "To reset your password click on the following button or link",
                 button: {
                     color: "#22BC66",
-                    text: "Reset Password",
+                    text: "Reset your TaskForge password",
                     link: passwordResetUrl
                 },
             },
-            outro: "Need help or have questions? Just reply to this email, we'd love to help."
+            outro: "If you did not request a password reset, you can ignore this email."
         },
     };
 };

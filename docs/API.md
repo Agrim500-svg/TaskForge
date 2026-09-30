@@ -15,11 +15,12 @@ Project routes use the existing singular prefix `/project`.
 | POST | `/auth/change-password` | Access JWT | `{ "oldPassword", "newPassword" }` | `200`; revokes tokens and clears cookies. `400` current password is incorrect; `422` invalid body. |
 | POST | `/auth/refresh-token` | Refresh cookie or body token | `{ "refreshToken?" }` | `200` rotated access/refresh tokens; `401` missing, invalid, expired, or revoked token. |
 | GET | `/auth/verify-email/:verificationToken` | Public | None | `200` verified; `400` invalid or expired token. |
+| POST | `/auth/request-email-verification` | Public | `{ "email" }` | `200` generic response whether or not an unverified account exists; resends are limited to one per minute per account. |
 | POST | `/auth/resend-email-verification` | Access JWT | None | `200` email sent; `409` already verified. |
 | POST | `/auth/forgot-password` | Public | `{ "email" }` | `200` generic response whether or not the account exists. |
 | POST | `/auth/reset-password/:resetToken` | Public | `{ "newPassword" }` | `200` password reset; `400` invalid/expired token; `422` invalid body. |
 
-Email-dependent operations need the SMTP settings in `.env`. Action links use `API_BASE_URL` when configured; password reset can use `FORGOT_PASSWORD_REDIRECT_URL`.
+Email-dependent operations need the SMTP settings in `.env`. Verification and password-reset links open the frontend; set `FRONTEND_BASE_URL` to the deployed frontend origin (local default: `http://localhost:5173`). Set `MAIL_FROM` to a sender address verified by your SMTP provider before sending real mail.
 
 ## Projects and members
 
@@ -40,21 +41,21 @@ Email-dependent operations need the SMTP settings in `.env`. Action links use `A
 | Method | URL | Authentication / role | Request body | Expected response |
 | --- | --- | --- | --- | --- |
 | GET | `/tasks/:projectId` | Project member | None | `200` project tasks. |
-| POST | `/tasks/:projectId` | Admin or Project Admin | `{ "title", "description?", "assignedTo?", "status?" }` | `201`; assignees must belong to the project; `400` invalid/nonmember assignee; `422` invalid body. |
+| POST | `/tasks/:projectId` | Admin or Project Admin | `{ "title", "description?", "assignedTo?", "status?", "dueDate?" }` | `201`; assignees must belong to the project; `400` invalid/nonmember assignee; `422` invalid body. |
 | GET | `/tasks/:projectId/t/:taskId` | Project member | None | `200` task, including subtasks; `400` invalid task ID; `404` task not in project. |
-| PUT | `/tasks/:projectId/t/:taskId` | Admin or Project Admin | Any of `{ "title?", "description?", "assignedTo?", "status?" }` | `200`; `404` task not in project; `422` invalid body/status. Send `assignedTo: null` to unassign. |
+| PUT | `/tasks/:projectId/t/:taskId` | Project member; managers may update task details, assigned members may update their own task status | Any of `{ "title?", "description?", "assignedTo?", "status?", "dueDate?" }` | `200`; `403` member updates a task not assigned to them or changes non-status fields; `404` task not in project; `422` invalid body/status/date. Send `assignedTo: null` or `dueDate: null` to clear those fields. |
 | DELETE | `/tasks/:projectId/t/:taskId` | Admin or Project Admin | None | `200`; deletes subtasks and stored task attachment files. |
 | POST | `/tasks/:projectId/t/:taskId/subtasks` | Admin or Project Admin | `{ "title" }` | `201`; `404` task not in project; `422` invalid title. |
-| PUT | `/tasks/:projectId/st/:subtaskId` | Project member | `{ "isCompleted" }` for Member; Admin/Project Admin may also send `{ "title?" }` | `200`; Members cannot change titles (`403`); `404` subtask not in project; `422` invalid body. |
+| PUT | `/tasks/:projectId/st/:subtaskId` | Project member | `{ "status" }` (`todo`, `in_progress`, `done`) or `{ "isCompleted" }`; Admin/Project Admin may also send `{ "title?" }` | `200`; Members cannot change titles (`403`); `404` subtask not in project; `422` invalid body. |
 | DELETE | `/tasks/:projectId/st/:subtaskId` | Admin or Project Admin | None | `200`; `404` subtask not in project. |
 
-Task status values are `todo`, `in_progress`, and `done`. Task and subtask IDs are always checked against the requested project.
+Task and subtask status values are `todo`, `in_progress`, and `done`. Task due dates use `YYYY-MM-DD`. Task and subtask IDs are always checked against the requested project.
 
 ## Task file attachments
 
 | Method | URL | Authentication / role | Request body | Expected response |
 | --- | --- | --- | --- | --- |
-| POST | `/tasks/:projectId/t/:taskId/attachments` | Admin or Project Admin | `multipart/form-data`, repeated file field `attachments` | `201` task with appended `{ url, mimetype, size }` metadata; `400` no files/too many files; `403` insufficient role; `404` task not in project; `413` file over 5 MiB; `415` disallowed MIME type, extension mismatch, or signature mismatch. |
+| POST | `/tasks/:projectId/t/:taskId/attachments` | Project member | `multipart/form-data`, repeated file field `attachments` | `201` task with appended `{ url, mimetype, size }` metadata; `400` no files/too many files; `404` task not in project; `413` file over 5 MiB; `415` disallowed MIME type, extension mismatch, or signature mismatch. |
 | GET | `/images/:generatedFilename` | Public static file URL | None | File bytes served with `X-Content-Type-Options: nosniff` and same-origin resource policy. Files are generated under `public/images`; allowed types are JPEG, PNG, GIF, WebP, and PDF. |
 
 Uploads accept at most five files per request and at most 5 MiB per file. The static URL is public to anyone who has it; do not store files that require private download authorization here.

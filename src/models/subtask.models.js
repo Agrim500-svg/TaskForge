@@ -1,4 +1,5 @@
 import mongoose, {Schema} from "mongoose";
+import { AvailableTaskStatus } from "../utils/constants.js";
 
 
 const subTaskSchema = new Schema({
@@ -16,6 +17,11 @@ const subTaskSchema = new Schema({
     isCompleted: {
         type: Boolean,
         default: false
+    },
+    status: {
+        type: String,
+        enum: AvailableTaskStatus,
+        default: undefined,
     },
     createdBy: {
         type: Schema.Types.ObjectId,

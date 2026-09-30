@@ -74,6 +74,15 @@ const userForgotPasswordValidator = () => {
     ];
 };
 
+const userRequestEmailVerificationValidator = () => [
+    body("email")
+        .trim()
+        .notEmpty()
+        .withMessage("Email is required")
+        .isEmail()
+        .withMessage("Email is invalid"),
+];
+
 const userResetForgotPasswordValidator = () => {
     return [
         body("newPassword")
@@ -148,11 +157,15 @@ const createTaskValidator = () => [
         .optional()
         .isIn(AvailableTaskStatus)
         .withMessage("Task status is invalid"),
+    body("dueDate")
+        .optional({ nullable: true })
+        .isISO8601({ strict: true })
+        .withMessage("Due date must be a valid calendar date"),
 ]
 
 const updateTaskValidator = () => [
     body().custom((_, { req }) => {
-        const editableFields = ["title", "description", "assignedTo", "status"];
+        const editableFields = ["title", "description", "assignedTo", "status", "dueDate"];
         if (!editableFields.some((field) => Object.hasOwn(req.body ?? {}, field))) {
             throw new Error("At least one task field must be provided");
         }
@@ -180,6 +193,10 @@ const updateTaskValidator = () => [
         .optional()
         .isIn(AvailableTaskStatus)
         .withMessage("Task status is invalid"),
+    body("dueDate")
+        .optional({ nullable: true })
+        .isISO8601({ strict: true })
+        .withMessage("Due date must be a valid calendar date"),
 ]
 
 const createSubtaskValidator = () => [
@@ -193,7 +210,7 @@ const createSubtaskValidator = () => [
 
 const updateSubtaskValidator = () => [
     body().custom((_, { req }) => {
-        const editableFields = ["title", "isCompleted"];
+        const editableFields = ["title", "isCompleted", "status"];
         if (!editableFields.some((field) => Object.hasOwn(req.body ?? {}, field))) {
             throw new Error("At least one subtask field must be provided");
         }
@@ -210,6 +227,10 @@ const updateSubtaskValidator = () => [
         .optional()
         .isBoolean()
         .withMessage("Subtask completion status must be a boolean"),
+    body("status")
+        .optional()
+        .isIn(AvailableTaskStatus)
+        .withMessage("Subtask status is invalid"),
 ];
 
 const createNoteValidator = () => [
@@ -226,6 +247,6 @@ const createNoteValidator = () => [
 const updateNoteValidator = () => createNoteValidator();
 
 export { userRegisterValidator, userLoginValidator, userChangeCurrentPasswordValidator, userForgotPasswordValidator,
-    userResetForgotPasswordValidator, createProjectValidator, addMembertoProjectValidator, updateMemberRoleValidator,
+    userRequestEmailVerificationValidator, userResetForgotPasswordValidator, createProjectValidator, addMembertoProjectValidator, updateMemberRoleValidator,
     createTaskValidator, updateTaskValidator, createSubtaskValidator, updateSubtaskValidator,
     createNoteValidator, updateNoteValidator };

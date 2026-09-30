@@ -66,6 +66,10 @@ const userSchema = new Schema(
         emailVerificationExpiry: {
             type: Date,
             select: false
+        },
+        emailVerificationLastSentAt: {
+            type: Date,
+            select: false
         }
     }, {
         timestamps: true,

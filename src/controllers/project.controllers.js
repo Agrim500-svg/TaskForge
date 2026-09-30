@@ -10,6 +10,7 @@ import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { AssignableProjectMemberRoles, UserRolesEnum } from "../utils/constants.js";
+import { createNotifications, projectMemberIds } from "../utils/notifications.js";
 
 const getProject = asyncHandler(async (req, res) => {
   const projects = await ProjectMember.aggregate([
@@ -80,6 +81,8 @@ const createProject = asyncHandler(async (req, res) => {
   } finally {
     await session.endSession();
   }
+
+  await createNotifications({ recipients: [req.user._id], actor: req.user._id, project: project._id, entityType: "project", entityId: project._id, type: "project_created", message: `You created project “${project.name}”.` });
 
   return res.status(201).json(new ApiResponse(201, project, "Project created successfully"));
 });
@@ -162,6 +165,8 @@ const addMembersToProject = asyncHandler(async (req, res) => {
     }
     throw error;
   }
+  const project = await Project.findById(projectId).select("name").lean();
+  await createNotifications({ recipients: [user._id], actor: req.user._id, project: projectId, entityType: "project", entityId: projectId, type: "member_added", message: `You were added to “${project?.name ?? "a project"}”.` });
   await projectMember.populate("user", "username fullName avatar");
 
   return res.status(201).json(new ApiResponse(201, projectMember, "Project member added successfully"));

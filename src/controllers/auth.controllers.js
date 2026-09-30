@@ -11,7 +11,8 @@ import {
 } from "../utils/mail.js";
 
 const publicUserFields = "-password -refreshToken -emailVerificationToken -emailVerificationExpiry -forgotPasswordToken -forgotPasswordExpiry";
-const tokenExpiry = 20 * 60 * 1000;
+const verificationTokenExpiry = 24 * 60 * 60 * 1000;
+const passwordResetTokenExpiry = 30 * 60 * 1000;
 
 const getCookieOptions = () => ({
   httpOnly: true,
@@ -20,16 +21,15 @@ const getCookieOptions = () => ({
   path: "/",
 });
 
-const makeActionUrl = (req, path, token) => {
-  const baseUrl = (process.env.API_BASE_URL || `${req.protocol}://${req.get("host")}`).replace(/\/$/, "");
-  return `${baseUrl}/api/v1/auth/${path}/${token}`;
-};
+const frontendBaseUrl = () => (process.env.FRONTEND_BASE_URL || "http://localhost:5173").replace(/\/$/, "");
+const makeVerificationUrl = (token) => `${frontendBaseUrl()}/verify-email?token=${encodeURIComponent(token)}`;
+const makePasswordResetUrl = (token) => `${frontendBaseUrl()}/reset-password/${encodeURIComponent(token)}`;
 
 const hashToken = (token) => crypto.createHash("sha256").update(token).digest("hex");
 
-const createTemporaryToken = () => {
+const createTemporaryToken = (expiresIn = passwordResetTokenExpiry) => {
   const token = crypto.randomBytes(32).toString("hex");
-  return { token, hash: hashToken(token), expiresAt: new Date(Date.now() + tokenExpiry) };
+  return { token, hash: hashToken(token), expiresAt: new Date(Date.now() + expiresIn) };
 };
 
 const generateAccessAndRefreshTokens = async (user) => {
@@ -72,18 +72,19 @@ const registerUser = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  const verification = createTemporaryToken();
+  const verification = createTemporaryToken(verificationTokenExpiry);
   user.emailVerificationToken = verification.hash;
   user.emailVerificationExpiry = verification.expiresAt;
+  user.emailVerificationLastSentAt = new Date();
   await user.save({ validateBeforeSave: false });
 
   try {
     await sendEmail({
       email: user.email,
-      subject: "Please verify your email",
+      subject: "Verify your TaskForge email",
       mailgenContent: emailVerificationMailgenContent(
         user.username,
-        makeActionUrl(req, "verify-email", verification.token),
+        makeVerificationUrl(verification.token),
       ),
     });
   } catch {
@@ -140,16 +141,22 @@ const getCurrentUser = asyncHandler(async (req, res) =>
 );
 
 const verifyEmail = asyncHandler(async (req, res) => {
+  const verificationHash = hashToken(req.params.verificationToken);
   const user = await User.findOne({
-    emailVerificationToken: hashToken(req.params.verificationToken),
+    emailVerificationToken: verificationHash,
     emailVerificationExpiry: { $gt: new Date() },
   }).select("+emailVerificationToken +emailVerificationExpiry");
   if (!user) {
+    const alreadyVerified = await User.exists({ emailVerificationToken: verificationHash, isEmailVerified: true });
+    if (alreadyVerified) {
+      return res.status(200).json(new ApiResponse(200, { isEmailVerified: true }, "Email verified successfully"));
+    }
     throw new ApiError(400, "Verification token is invalid or expired");
   }
 
   user.isEmailVerified = true;
-  user.emailVerificationToken = undefined;
+  // Retain only the one-way token hash so clicking the same link again is idempotent.
+  user.emailVerificationToken = verificationHash;
   user.emailVerificationExpiry = undefined;
   await user.save({ validateBeforeSave: false });
 
@@ -161,20 +168,49 @@ const resendEmailVerification = asyncHandler(async (req, res) => {
   if (!user) throw new ApiError(404, "User not found");
   if (user.isEmailVerified) throw new ApiError(409, "Email is already verified");
 
-  const verification = createTemporaryToken();
+  const verification = createTemporaryToken(verificationTokenExpiry);
   user.emailVerificationToken = verification.hash;
   user.emailVerificationExpiry = verification.expiresAt;
+  user.emailVerificationLastSentAt = new Date();
   await user.save({ validateBeforeSave: false });
   await sendEmail({
     email: user.email,
-    subject: "Please verify your email",
+    subject: "Verify your TaskForge email",
     mailgenContent: emailVerificationMailgenContent(
       user.username,
-      makeActionUrl(req, "verify-email", verification.token),
+      makeVerificationUrl(verification.token),
     ),
   });
 
   return res.status(200).json(new ApiResponse(200, {}, "Verification email sent"));
+});
+
+const requestEmailVerification = asyncHandler(async (req, res) => {
+  const email = req.body.email.toLowerCase().trim();
+  const user = await User.findOne({ email }).select("+emailVerificationLastSentAt");
+  const cooldownMs = 60 * 1000;
+  const canSend = !user?.emailVerificationLastSentAt || Date.now() - user.emailVerificationLastSentAt.getTime() >= cooldownMs;
+
+  if (user && !user.isEmailVerified && canSend) {
+    const verification = createTemporaryToken(verificationTokenExpiry);
+    user.emailVerificationToken = verification.hash;
+    user.emailVerificationExpiry = verification.expiresAt;
+    user.emailVerificationLastSentAt = new Date();
+    await user.save({ validateBeforeSave: false });
+    try {
+      await sendEmail({
+        email: user.email,
+        subject: "Verify your TaskForge email",
+        mailgenContent: emailVerificationMailgenContent(user.username, makeVerificationUrl(verification.token)),
+      });
+    } catch {
+      // Keep this public endpoint's response neutral so it doesn't reveal registered addresses.
+    }
+  }
+
+  return res.status(200).json(
+    new ApiResponse(200, {}, "If that account needs verification, a new link will be sent shortly"),
+  );
 });
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
@@ -218,12 +254,10 @@ const forgotPassword = asyncHandler(async (req, res) => {
     await user.save({ validateBeforeSave: false });
     await sendEmail({
       email: user.email,
-      subject: "Password reset request",
+      subject: "Reset your TaskForge password",
       mailgenContent: forgotPasswordMailgenContent(
         user.username,
-        process.env.FORGOT_PASSWORD_REDIRECT_URL
-          ? `${process.env.FORGOT_PASSWORD_REDIRECT_URL.replace(/\/$/, "")}/${reset.token}`
-          : makeActionUrl(req, "reset-password", reset.token),
+        makePasswordResetUrl(reset.token),
       ),
     });
   }
@@ -273,6 +307,7 @@ export {
   getCurrentUser,
   verifyEmail,
   resendEmailVerification,
+  requestEmailVerification,
   refreshAccessToken,
   changeCurrentPassword,
   forgotPassword,

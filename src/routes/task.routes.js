@@ -22,7 +22,7 @@ router.post(
 router.get("/:projectId/t/:taskId", validateProjectPermission(AvailableUserRole), getTaskById);
 router.put(
   "/:projectId/t/:taskId",
-  validateProjectPermission(taskManagerRoles),
+  validateProjectPermission(AvailableUserRole),
   updateTaskValidator(),
   validate,
   updateTask,
@@ -30,7 +30,7 @@ router.put(
 router.delete("/:projectId/t/:taskId", validateProjectPermission(taskManagerRoles), deleteTask);
 router.post(
   "/:projectId/t/:taskId/attachments",
-  validateProjectPermission(taskManagerRoles),
+  validateProjectPermission(AvailableUserRole),
   validateTaskAttachmentTarget,
   uploadTaskAttachments,
   uploadTaskAttachmentsToTask,
