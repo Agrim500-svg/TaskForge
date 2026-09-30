@@ -14,6 +14,7 @@ import {
 } from "../controllers/auth.controllers.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validator.middleware.js";
+import { rateLimit } from "../middlewares/rate-limit.middleware.js";
 import {
   userChangeCurrentPasswordValidator,
   userForgotPasswordValidator,
@@ -25,18 +26,22 @@ import {
 
 const router = Router();
 
-router.post("/register", userRegisterValidator(), validate, registerUser);
-router.post("/login", userLoginValidator(), validate, login);
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: "Too many sign-in attempts. Try again in 15 minutes." });
+const registrationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: "Too many account creation attempts. Try again in an hour." });
+const emailLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, message: "Too many email requests. Try again in 15 minutes." });
+
+router.post("/register", registrationLimiter, userRegisterValidator(), validate, registerUser);
+router.post("/login", loginLimiter, userLoginValidator(), validate, login);
 router.get("/verify-email/:verificationToken", verifyEmail);
-router.post("/request-email-verification", userRequestEmailVerificationValidator(), validate, requestEmailVerification);
+router.post("/request-email-verification", emailLimiter, userRequestEmailVerificationValidator(), validate, requestEmailVerification);
 router.post("/refresh-token", refreshAccessToken);
-router.post("/forgot-password", userForgotPasswordValidator(), validate, forgotPassword);
-router.post("/reset-password/:resetToken", userResetForgotPasswordValidator(), validate, resetForgotPassword);
+router.post("/forgot-password", emailLimiter, userForgotPasswordValidator(), validate, forgotPassword);
+router.post("/reset-password/:resetToken", emailLimiter, userResetForgotPasswordValidator(), validate, resetForgotPassword);
 
 router.post("/logout", verifyJWT, logoutUser);
 router.get("/current-user", verifyJWT, getCurrentUser);
 router.post("/change-password", verifyJWT, userChangeCurrentPasswordValidator(), validate, changeCurrentPassword);
-router.post("/resend-email-verification", verifyJWT, resendEmailVerification);
+router.post("/resend-email-verification", emailLimiter, verifyJWT, resendEmailVerification);
 
 export default router;
 

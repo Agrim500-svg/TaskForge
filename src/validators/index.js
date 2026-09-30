@@ -23,8 +23,8 @@ const userRegisterValidator = () => {
         body("password")
             .notEmpty()
             .withMessage("Password is required")
-            .isLength({ min: 6 })
-            .withMessage("Password must be at least 6 characters long"),
+            .isLength({ min: 12 })
+            .withMessage("Password must be at least 12 characters long"),
 
         body("fullName").optional().trim(),
 
@@ -59,8 +59,8 @@ const userChangeCurrentPasswordValidator = () => {
         body("newPassword")
             .notEmpty()
             .withMessage("New password is required")
-            .isLength({ min: 6 })
-            .withMessage("New password must be at least 6 characters long")
+            .isLength({ min: 12 })
+            .withMessage("New password must be at least 12 characters long")
     ];
 };
 
@@ -88,8 +88,8 @@ const userResetForgotPasswordValidator = () => {
         body("newPassword")
             .notEmpty()
             .withMessage("New password is required")
-            .isLength({ min: 6 })
-            .withMessage("New password must be at least 6 characters long")
+            .isLength({ min: 12 })
+            .withMessage("New password must be at least 12 characters long")
     ];
 };
 

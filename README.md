@@ -6,6 +6,15 @@ TaskForge is a project management workspace for organizing projects, tasks, and 
 - **API health check:** https://taskforge-api-46zs.onrender.com/api/v1/healthCheck
 - **API reference:** [docs/API.md](docs/API.md)
 
+## Demo access
+
+Open the [live app](https://taskforge-6sjd.onrender.com) and choose **Sign in**:
+
+- **Email:** `taskforge.demo@gmail.com`
+- **Password:** `demo@123`
+
+Registration is disabled for the public demo. Use the demo account to explore TaskForge.
+
 ## Features
 
 - Account registration, email verification, sign-in, and password recovery
@@ -83,6 +92,8 @@ For the deployed frontend, set `VITE_API_BASE_URL` to the API base URL, includin
 
 The hosted demo runs on Render's `onrender.com` subdomains. Uploaded attachments are currently written to the backend's local `public/images` directory. Use persistent or object storage before relying on uploads for important or long-term data.
 
+The frontend uses React Router. For a Render Static Site, add a rewrite rule with source `/*`, destination `/index.html`, and action `Rewrite` so direct visits to app routes (including email links) load correctly. The authentication rate limits use an in-memory store suitable for this single-instance demo; use a shared store such as Redis if you scale the API to multiple instances.
+
 ## License
 
-No license has been added yet. Contact the author before reusing this code beyond GitHub's default viewing and forking permissions.
+This project is available under the [ISC License](LICENSE).
