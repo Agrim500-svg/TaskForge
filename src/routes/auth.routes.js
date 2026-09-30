@@ -15,6 +15,7 @@ import {
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validator.middleware.js";
 import { rateLimit } from "../middlewares/rate-limit.middleware.js";
+import { ApiResponse } from "../utils/api-response.js";
 import {
   userChangeCurrentPasswordValidator,
   userForgotPasswordValidator,
@@ -30,7 +31,16 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10, message: "To
 const registrationLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: "Too many account creation attempts. Try again in an hour." });
 const emailLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 5, message: "Too many email requests. Try again in 15 minutes." });
 
-router.post("/register", registrationLimiter, userRegisterValidator(), validate, registerUser);
+const publicRegistrationGate = (req, res, next) => {
+  const registrationEnabled = process.env.PUBLIC_REGISTRATION_ENABLED === "true"
+    || process.env.NODE_ENV !== "production";
+  if (!registrationEnabled) {
+    return res.status(403).json(new ApiResponse(403, {}, "Registration is currently disabled for the public demo. Please use the Demo Account to explore TaskForge."));
+  }
+  return next();
+};
+
+router.post("/register", publicRegistrationGate, registrationLimiter, userRegisterValidator(), validate, registerUser);
 router.post("/login", loginLimiter, userLoginValidator(), validate, login);
 router.get("/verify-email/:verificationToken", verifyEmail);
 router.post("/request-email-verification", emailLimiter, userRequestEmailVerificationValidator(), validate, requestEmailVerification);
